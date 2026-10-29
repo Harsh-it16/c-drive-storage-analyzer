@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>C-Drive Dormant Space Scope - Presentation & Analyzer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-dark">
+  <div class="app-shell">
+    
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo-badge">
+          <span class="logo-icon">💽</span>
+          <div>
+            <h1 class="logo-title">C-Drive DormantScope</h1>
+            <p class="logo-subtitle">Intelligent Storage Audit & Inactive Space Analyzer</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-center">
+        <!-- View Switcher -->
+        <div class="view-toggle-pill">
+          <button id="viewBtnPresentation" class="toggle-btn active" title="Executive Slides View">
+            <span class="icon">📽️</span> Presentation View
+          </button>
+          <button id="viewBtnExplorer" class="toggle-btn" title="Detailed Interactive Table View">
+            <span class="icon">📊</span> Data Explorer
+          </button>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <button id="exportCsvBtn" class="btn btn-secondary btn-sm" title="Download CSV Report">
+          <span>📥</span> Export CSV
+        </button>
+        <button id="exportPresentationBtn" class="btn btn-secondary btn-sm" title="Download Presentation HTML">
+          <span>📑</span> Export Slides
+        </button>
+        <button id="themeToggleBtn" class="btn btn-icon btn-sm" title="Toggle Dark/Light Mode">
+          <span id="themeIcon">☀️</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-content">
+      
+      <!-- Scan Controls Card -->
+      <section class="controls-card">
+        <div class="controls-grid">
+          
+          <!-- Scan Target Section -->
+          <div class="control-group target-group">
+            <label class="control-label">
+              <span>📍 Scan Target Location in C: Drive</span>
+              <span class="badge badge-info" id="presetBadge">User Profile</span>
+            </label>
+            <div class="target-input-row">
+              <input type="text" id="targetPathInput" class="input-text" value="C:\Users" placeholder="e.g. C:\ or C:\Users\Username">
+              <div class="preset-dropdown-wrap">
+                <button type="button" id="presetMenuBtn" class="btn btn-outline btn-sm">Presets ▾</button>
+                <div id="presetMenu" class="dropdown-menu hidden">
+                  <!-- Populated by JS -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Minimum Size -->
+          <div class="control-group">
+            <label class="control-label" for="minSizeSelect">
+              <span>📦 Minimum File Size</span>
+            </label>
+            <select id="minSizeSelect" class="input-select">
+              <option value="10">≥ 10 MB</option>
+              <option value="25" selected>≥ 25 MB (Recommended)</option>
+              <option value="50">≥ 50 MB</option>
+              <option value="100">≥ 100 MB</option>
+              <option value="250">≥ 250 MB</option>
+              <option value="500">≥ 500 MB</option>
+              <option value="1024">≥ 1 GB (Giant Files)</option>
+            </select>
+          </div>
+
+          <!-- Inactivity Threshold -->
+          <div class="control-group">
+            <label class="control-label" for="minDaysSelect">
+              <span>⏳ Inactivity Threshold</span>
+            </label>
+            <select id="minDaysSelect" class="input-select">
+              <option value="30">Untouched > 30 Days (1 Month)</option>
+              <option value="60" selected>Untouched > 60 Days (2 Months)</option>
+              <option value="90">Untouched > 90 Days (1 Quarter)</option>
+              <option value="180">Untouched > 180 Days (6 Months)</option>
+              <option value="365">Untouched > 1 Year (Deep Stale)</option>
+              <option value="730">Untouched > 2 Years (Ancient)</option>
+            </select>
+          </div>
+
+          <!-- Date Basis & System Skip -->
+          <div class="control-group">
+            <label class="control-label" for="dateBasisSelect">
+              <span>📅 Dormancy Metric</span>
+            </label>
+            <select id="dateBasisSelect" class="input-select">
+              <option value="effective" selected>Effective (Modified or Accessed)</option>
+              <option value="mtime">Last Modified Only</option>
+              <option value="atime">Last Accessed Only</option>
+            </select>
+          </div>
+
+          <!-- Action Button -->
+          <div class="control-group scan-action-group">
+            <label class="control-label">&nbsp;</label>
+            <div class="scan-button-wrap">
+              <button id="startScanBtn" class="btn btn-primary btn-block">
+                <span class="btn-icon">⚡</span> Start C: Analysis
+              </button>
+              <button id="stopScanBtn" class="btn btn-danger btn-block hidden">
+                <span class="btn-icon">⏹</span> Stop Scan
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Quick Target Presets Row -->
+        <div class="quick-presets-pills">
+          <span class="presets-label">Quick Scan:</span>
+          <button class="pill-btn active" data-path="USER_PROFILE">👤 My User Profile</button>
+          <button class="pill-btn" data-path="DOWNLOADS">📥 Downloads & Temp</button>
+          <button class="pill-btn" data-path="DEV_CACHES">🛠️ Dev Caches (.gradle/.m2)</button>
+          <button class="pill-btn" data-path="C:\">💽 Full C:\ Drive</button>
+        </div>
+      </section>
+
+      <!-- Live Scan Progress Bar Banner -->
+      <section id="scanProgressCard" class="progress-card hidden">
+        <div class="progress-header">
+          <div class="progress-title-wrap">
+            <div class="spinner"></div>
+            <div>
+              <div class="progress-title" id="progressStatusText">Scanning C: drive...</div>
+              <div class="progress-subtitle" id="progressCurrentDir">Examining directories...</div>
+            </div>
+          </div>
+          <div class="progress-metrics">
+            <span class="metric-pill">Files Scanned: <strong id="progressFilesCount">0</strong></span>
+            <span class="metric-pill">Speed: <strong id="progressSpeed">0</strong> files/sec</span>
+            <span class="metric-pill">Dormant Found: <strong id="progressDormantCount">0</strong></span>
+            <span class="metric-pill highlight">Reclaimable: <strong id="progressDormantBytes">0 GB</strong></span>
+          </div>
+        </div>
+        <div class="scan-progress-track">
+          <div id="scanProgressBar" class="scan-progress-fill indeterminate"></div>
+        </div>
+      </section>
+
+      <!-- VIEW 1: PRESENTATION VIEW (Executive Slides) -->
+      <div id="presentationView" class="view-panel">
+        
+        <!-- Presentation Navigation Controls -->
+        <div class="presentation-toolbar">
+          <div class="pres-nav-left">
+            <button id="prevSlideBtn" class="btn btn-secondary btn-sm" title="Previous Slide (Left Arrow)">
+              ◀ Previous
+            </button>
+            <div class="slide-indicators" id="slideIndicators">
+              <!-- Rendered by JS: Dots -->
+            </div>
+            <button id="nextSlideBtn" class="btn btn-secondary btn-sm" title="Next Slide (Right Arrow)">
+              Next ▶
+            </button>
+          </div>
+          <div class="pres-nav-center">
+            <span class="current-slide-badge" id="slideNumberDisplay">Slide 1 of 5</span>
+          </div>
+          <div class="pres-nav-right">
+            <button id="autoplayBtn" class="btn btn-outline btn-sm">
+              <span id="autoplayIcon">▶</span> Autoplay
+            </button>
+            <button id="fullscreenBtn" class="btn btn-outline btn-sm" title="Toggle Fullscreen Presentation">
+              ⛶ Fullscreen
+            </button>
+          </div>
+        </div>
+
+        <!-- Slides Deck Container -->
+        <div class="slides-container" id="slidesContainer">
+          
+          <!-- SLIDE 1: Executive Overview & C: Drive Health -->
+          <article class="slide active" data-slide="1">
+            <div class="slide-header">
+              <div>
+                <span class="slide-kicker">EXECUTIVE SUMMARY</span>
+                <h2 class="slide-title">C: Drive Storage Health & Reclaim Potential</h2>
+              </div>
+              <div class="health-grade-badge" id="healthGradeBadge">
+                <span class="grade-letter">B+</span>
+                <span class="grade-label">Storage Health</span>
+              </div>
+            </div>
+
+            <!-- Drive Capacity Visual Meter -->
+            <div class="drive-meter-card">
+              <div class="meter-info-row">
+                <span class="drive-name">💻 Windows Laptop C:\ Partition</span>
+                <span class="drive-summary" id="driveSummaryText">Analyzing partition...</span>
+              </div>
+              <div class="drive-bar-stacked">
+                <div id="barUsed" class="bar-segment bar-used" style="width: 50%;" title="Used Space"></div>
+                <div id="barDormant" class="bar-segment bar-dormant" style="width: 15%;" title="Dormant Reclaimable Space"></div>
+                <div id="barFree" class="bar-segment bar-free" style="width: 35%;" title="Free Space"></div>
+              </div>
+              <div class="meter-legend">
+                <div class="legend-item"><span class="legend-dot dot-used"></span> Active In-Use Space: <strong id="metricActiveUsed">-</strong></div>
+                <div class="legend-item"><span class="legend-dot dot-dormant"></span> Dormant Inactive Waste: <strong id="metricDormantReclaim">-</strong></div>
+                <div class="legend-item"><span class="legend-dot dot-free"></span> Free Space Remaining: <strong id="metricFree">-</strong></div>
+              </div>
+            </div>
+
+            <!-- Key Metrics Grid -->
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <div class="metric-icon">💽</div>
+                <div class="metric-label">C: Drive Capacity</div>
+                <div class="metric-value" id="cardTotalCapacity">-</div>
+                <div class="metric-sub" id="cardCapacitySub">Total storage volume</div>
+              </div>
+              <div class="metric-card accent">
+                <div class="metric-icon">🧹</div>
+                <div class="metric-label">Identified Dormant Waste</div>
+                <div class="metric-value text-accent" id="cardDormantWaste">-</div>
+                <div class="metric-sub" id="cardDormantSub">Space in stale large files</div>
+              </div>
+              <div class="metric-card emerald">
+                <div class="metric-icon">⚡</div>
+                <div class="metric-label">Safe Immediate Reclaim</div>
+                <div class="metric-value text-emerald" id="cardSafeReclaim">-</div>
+                <div class="metric-sub">Downloads, old zips & caches</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-icon">📁</div>
+                <div class="metric-label">Dormant Files Found</div>
+                <div class="metric-value" id="cardDormantCount">-</div>
+                <div class="metric-sub" id="cardDormantCountSub">Meeting filter criteria</div>
+              </div>
+            </div>
+          </article>
+
+          <!-- SLIDE 2: Dormancy Age Spectrum -->
+          <article class="slide" data-slide="2">
+            <div class="slide-header">
+              <div>
+                <span class="slide-kicker">TIME CAPSULE AUDIT</span>
+                <h2 class="slide-title">Dormancy Age Spectrum (Untouched Duration)</h2>
+              </div>
+              <div class="slide-tag">Inactivity Distribution</div>
+            </div>
+
+            <div class="slide-grid-2col">
+              <div class="chart-container-card">
+                <h3 class="card-heading">Dormant Space by Age Tier</h3>
+                <div class="canvas-wrap">
+                  <canvas id="ageDistributionChart" width="450" height="240"></canvas>
+                </div>
+              </div>
+              
+              <div class="spectrum-cards-col" id="ageCardsContainer">
+                <!-- Dynamically rendered age tier cards -->
+              </div>
+            </div>
+          </article>
+
+          <!-- SLIDE 3: Top 10 Giant Dormant Culprits & Locations -->
+          <article class="slide" data-slide="3">
+            <div class="slide-header">
+              <div>
+                <span class="slide-kicker">PRIMARY SPACE HOGS</span>
+                <h2 class="slide-title">Top Dormant Space Wasters & Locations in C:\</h2>
+              </div>
+              <div class="slide-tag">Ranked by Size</div>
+            </div>
+
+            <div class="culprits-grid" id="topCulpritsGrid">
+              <!-- Dynamically populated top 6-10 culprit cards with "Open in Explorer" -->
+            </div>
+          </article>
+
+          <!-- SLIDE 4: Folder Hotspots & Drive Hierarchy -->
+          <article class="slide" data-slide="4">
+            <div class="slide-header">
+              <div>
+                <span class="slide-kicker">STORAGE GEOGRAPHY</span>
+                <h2 class="slide-title">Folder Hotspots & Category Breakdown</h2>
+              </div>
+              <div class="slide-tag">Where Inactive Space Lives</div>
+            </div>
+
+            <div class="slide-grid-2col">
+              <div class="chart-container-card">
+                <h3 class="card-heading">Top C: Folders Harboring Inactive Files</h3>
+                <div class="hotspots-list" id="folderHotspotsList">
+                  <!-- Rendered folder bars -->
+                </div>
+              </div>
+
+              <div class="chart-container-card">
+                <h3 class="card-heading">File Categories Distribution</h3>
+                <div class="canvas-wrap">
+                  <canvas id="categoryDistributionChart" width="450" height="240"></canvas>
+                </div>
+                <div class="categories-chips-wrap" id="categoryChipsWrap">
+                  <!-- Rendered category badges -->
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- SLIDE 5: Strategic Action Plan & Reclaim Roadmap -->
+          <article class="slide" data-slide="5">
+            <div class="slide-header">
+              <div>
+                <span class="slide-kicker">ACTIONABLE STRATEGY</span>
+                <h2 class="slide-title">Recommended C: Drive Cleanup Roadmap</h2>
+              </div>
+              <div class="slide-tag">Safe Reclaim Guide</div>
+            </div>
+
+            <div class="roadmap-grid">
+              
+              <div class="roadmap-card card-safe">
+                <div class="roadmap-badge badge-safe">Phase 1: Safe Quick Wins</div>
+                <h3 class="roadmap-title">🧹 Purge Downloads, Temp & Old Archives</h3>
+                <p class="roadmap-desc">
+                  Files residing in Downloads, Temp folders, and uninstalled build caches (.gradle, .m2) that haven't been touched in over 90 days.
+                </p>
+                <div class="roadmap-stat">
+                  <span>Reclaimable:</span> <strong id="roadSafeGB">- GB</strong>
+                </div>
+                <button class="btn btn-emerald btn-sm" id="btnFilterSafeWins">View Safe Files in Explorer</button>
+              </div>
+
+              <div class="roadmap-card card-review">
+                <div class="roadmap-badge badge-review">Phase 2: User Review</div>
+                <h3 class="roadmap-title">🎬 Relocate Inactive Media, VMs & Models</h3>
+                <p class="roadmap-desc">
+                  High-capacity media files (.mp4, .mkv), virtual disk images (.vmdk, .vhdx), and AI weights (.safetensors, .gguf) untouched for months.
+                </p>
+                <div class="roadmap-stat">
+                  <span>Review Size:</span> <strong id="roadReviewGB">- GB</strong>
+                </div>
+                <button class="btn btn-secondary btn-sm" id="btnFilterReviewMedia">View Media & VM Files</button>
+              </div>
+
+              <div class="roadmap-card card-system">
+                <div class="roadmap-badge badge-system">Phase 3: System Optimization</div>
+                <h3 class="roadmap-title">⚙️ Windows OS & Game Management</h3>
+                <p class="roadmap-desc">
+                  Windows hibernation file (hiberfil.sys) and dormant game installations. Use Windows Settings / Storage Sense or powercfg commands safely.
+                </p>
+                <div class="roadmap-stat">
+                  <span>Advice:</span> <strong>Use Windows Storage Settings</strong>
+                </div>
+                <button class="btn btn-outline btn-sm" id="btnOpenWinSettings">Learn OS Storage Tips</button>
+              </div>
+
+            </div>
+          </article>
+
+        </div>
+      </div>
+
+      <!-- VIEW 2: INTERACTIVE DATA EXPLORER VIEW -->
+      <div id="explorerView" class="view-panel hidden">
+        
+        <!-- Filter and Search Toolbar -->
+        <div class="explorer-toolbar">
+          <div class="search-box-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="fileSearchInput" class="search-input" placeholder="Search by file name, extension (.iso, .zip), or folder path...">
+            <button id="clearSearchBtn" class="clear-search-btn hidden">✕</button>
+          </div>
+
+          <!-- Category Quick Filter Chips -->
+          <div class="category-filters-row" id="categoryFiltersRow">
+            <button class="cat-pill active" data-cat="ALL">All Categories</button>
+            <button class="cat-pill" data-cat="Installers & Setup">📦 Installers</button>
+            <button class="cat-pill" data-cat="Archives & Compressed">🗄️ Archives</button>
+            <button class="cat-pill" data-cat="Media & Video">🎬 Media</button>
+            <button class="cat-pill" data-cat="AI Models & Datasets">🧠 AI Models</button>
+            <button class="cat-pill" data-cat="Virtual Machines & Disks">💻 VM Disks</button>
+            <button class="cat-pill" data-cat="Development Caches">🛠️ Dev Caches</button>
+            <button class="cat-pill" data-cat="SAFE_ONLY">✅ Safe to Clean Only</button>
+          </div>
+        </div>
+
+        <!-- Table Information Summary Bar -->
+        <div class="table-meta-bar">
+          <div>
+            Showing <strong id="showingCount">0</strong> of <strong id="totalCount">0</strong> dormant files
+            (<span id="showingSize">0 GB</span> total)
+          </div>
+          <div class="table-sorting-hint">
+            Click table headers to sort &bull; 📁 button opens Windows File Explorer directly
+          </div>
+        </div>
+
+        <!-- Data Table Container -->
+        <div class="table-container">
+          <table class="data-table" id="dormantTable">
+            <thead>
+              <tr>
+                <th data-sort="name" class="sortable">File Name ▾</th>
+                <th data-sort="path" class="sortable">Location in C: Drive ▾</th>
+                <th data-sort="size_bytes" class="sortable sorted-desc">Size ▾</th>
+                <th data-sort="days_dormant" class="sortable">Inactive For ▾</th>
+                <th data-sort="mtime" class="sortable">Last Modified ▾</th>
+                <th data-sort="category" class="sortable">Category ▾</th>
+                <th>Safety Rating</th>
+                <th class="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="dormantTableBody">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+          <div id="noResultsMsg" class="no-results hidden">
+            <div class="no-results-icon">📂</div>
+            <h3>No matching dormant files found</h3>
+            <p>Try lowering the minimum file size or decreasing the inactivity threshold in the controls above.</p>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+    <!-- File Details Modal -->
+    <div id="fileModal" class="modal-backdrop hidden">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3 class="modal-title" id="modalFileName">File Details</h3>
+          <button id="modalCloseBtn" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body" id="modalBody">
+          <!-- Populated by JS -->
+        </div>
+        <div class="modal-footer" style="flex-wrap:wrap; gap:8px;">
+          <button id="modalDeleteBtn" class="btn btn-danger btn-sm" title="Delete file">
+            🗑️ Delete File
+          </button>
+          <button id="modalOpenExplorerBtn" class="btn btn-primary btn-sm" title="Highlight this file in File Explorer">
+            📁 Reveal in Explorer
+          </button>
+          <button id="modalOpenFolderBtn" class="btn btn-secondary btn-sm" title="Open the containing directory in File Explorer">
+            📂 Open Folder
+          </button>
+          <button id="modalCopyPathBtn" class="btn btn-outline btn-sm">
+            📋 Copy Path
+          </button>
+          <button id="modalCloseFooterBtn" class="btn btn-outline btn-sm">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal-backdrop hidden">
+      <div class="modal-box modal-box-danger">
+        <div class="modal-header">
+          <h3 class="modal-title" style="color:var(--rose);">🗑️ Confirm File Deletion</h3>
+          <button id="deleteModalCloseBtn" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:14px; margin-bottom: 12px;">
+            Are you sure you want to delete this dormant file?
+          </p>
+          <div style="background:var(--bg-card); padding:12px; border-radius:8px; border:1px solid var(--border-color); margin-bottom:14px;">
+            <div style="font-weight:700; font-size:14px;" id="deleteModalFileName">filename.ext</div>
+            <div style="font-family:var(--font-mono); font-size:11px; color:#93c5fd; margin-top:4px; word-break:break-all;" id="deleteModalFilePath">C:\path\to\file</div>
+            <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:12px; color:var(--text-muted);">
+              <span>Size: <strong id="deleteModalFileSize" style="color:var(--text-main);">-</strong></span>
+              <span>Inactive: <strong id="deleteModalFileDays" style="color:var(--amber);">-</strong></span>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; font-size:12px; color:var(--emerald); background:rgba(16,185,129,0.1); padding:8px 12px; border-radius:6px;">
+            <span>🛡️</span>
+            <span>Safely moved to Windows Recycle Bin. You can restore it if needed.</span>
+          </div>
+          <div style="margin-top:12px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-muted);">
+            <input type="checkbox" id="skipDeleteConfirmCheck" style="cursor:pointer;">
+            <label for="skipDeleteConfirmCheck" style="cursor:pointer;">Don't ask confirmation again this session (1-click delete)</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="confirmDeleteBtn" class="btn btn-danger btn-sm">
+            🗑️ Delete to Recycle Bin
+          </button>
+          <button id="cancelDeleteBtn" class="btn btn-outline btn-sm">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Access Denied Guidance Modal -->
+    <div id="accessDeniedModal" class="modal-backdrop hidden">
+      <div class="modal-box" style="border-top: 4px solid var(--amber);">
+        <div class="modal-header">
+          <h3 class="modal-title" style="color:var(--amber); display:flex; align-items:center; gap:8px;">
+            <span>🛡️</span> Access Denied — Manual Deletion Recommended
+          </h3>
+          <button id="accessDeniedCloseBtn" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:13px; color:var(--text-main); line-height:1.5;">
+            Windows prevented automated deletion of this file because it requires <strong>Administrator privileges</strong> or is currently locked by a running application.
+          </p>
+
+          <div style="background:var(--bg-card); padding:12px; border-radius:8px; border:1px solid var(--border-color); margin:12px 0;">
+            <div style="font-weight:700; font-size:14px;" id="deniedModalFileName">filename.ext</div>
+            <div style="font-family:var(--font-mono); font-size:11px; color:#93c5fd; margin-top:4px; word-break:break-all;" id="deniedModalFilePath">C:\path\to\file</div>
+          </div>
+
+          <div style="background:rgba(245, 158, 11, 0.1); border:1px solid rgba(245, 158, 11, 0.25); border-radius:8px; padding:12px; font-size:13px; color:var(--text-main);">
+            <div style="font-weight:700; color:var(--amber); margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+              <span>💡</span> Recommended Steps:
+            </div>
+            <ol style="margin-left:18px; color:var(--text-muted); line-height:1.5; font-size:12px;">
+              <li>Click <strong>Open in File Explorer</strong> below to navigate to the exact folder.</li>
+              <li>Press <kbd style="background:rgba(0,0,0,0.3); padding:1px 4px; border-radius:4px; font-size:11px;">Delete</kbd> on the file in Windows File Explorer.</li>
+              <li>Windows will show the UAC Administrator prompt to delete it safely, or notify you if an app is holding it open.</li>
+            </ol>
+            <div style="margin-top:8px; font-size:11px; color:var(--text-faint);">
+              <em>Note: If File Explorer opens behind your browser, look for the folder icon on your Windows taskbar or press <strong>Alt + Tab</strong>.</em>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="flex-wrap:wrap; gap:8px;">
+          <button id="deniedOpenExplorerBtn" class="btn btn-primary btn-sm">
+            📁 Open & Highlight File
+          </button>
+          <button id="deniedOpenFolderBtn" class="btn btn-secondary btn-sm">
+            📂 Open Containing Folder
+          </button>
+          <button id="deniedCopyPathBtn" class="btn btn-outline btn-sm">
+            📋 Copy Path
+          </button>
+          <button id="deniedCloseFooterBtn" class="btn btn-outline btn-sm">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toastNotification" class="toast hidden">
+      <span id="toastIcon">ℹ️</span>
+      <span id="toastMessage">Notification message</span>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
